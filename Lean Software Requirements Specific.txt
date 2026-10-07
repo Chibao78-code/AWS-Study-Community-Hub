@@ -1,0 +1,576 @@
+Lean Software Requirements Specification
+AWS Event Management and Engagement Platform
+Document status: Draft
+Version: 0.1
+Source: Project Decision Baseline
+Product type: AWS-native event management and engagement platform
+
+1. Introduction
+1.1 Purpose: 
+The purpose of this system is to provide a centralized event management and engagement platform for the AWS ecosystem. The platform is intended to consolidate the end-to-end event lifecycle—from event creation, review, and publication to discovery, registration, attendance, engagement, feedback, and analytics—within a single system.
+The system is designed to reduce the fragmentation associated with third-party event platforms and to establish the AWS platform as the canonical system of record for AWS-related events. In the target state, external platforms may be used for benchmarking, migration, legacy transition, or optional integration, but they shall not serve as the authoritative source for core event data or lifecycle management.
+1.2 Product Scope: 
+In scope
+The platform shall support:
+•	Event creation and management.
+•	Event submission, review, approval, and publication.
+•	Governed event taxonomy.
+•	Event discovery, search, and filtering.
+•	Registration and cancellation.
+•	Capacity management and waitlisting.
+•	Participant approval, where applicable.
+•	Attendance tracking and check-in.
+•	Organizer-to-participant communication.
+•	Announcements, email, notifications, and calendar invitations.
+•	Post-event surveys and feedback.
+•	Event-level and platform-level analytics capabilities.
+•	Centralized ownership of canonical event and registration data.
+•	Optional integration with external event platforms.
+Out of scope or deferred
+The following items are not defined as current core requirements:
+•	Paid events, ticketing, and e-commerce functionality.
+•	A recommendation or personalization engine.
+•	A finalized set of analytics metrics and reports.
+•	A finalized AWS service implementation stack.
+•	Full migration from Luma, Meetup, Eventbrite, or other third-party platforms.
+•	Detailed identity-provider implementation.
+•	Detailed external-audience authentication.
+•	Notification channels beyond the channels explicitly supported by the approved design.
+•	Final data-retention policy.
+1.3 Definitions, Acronyms, and Abbreviations: 
+Term	Definition
+AWS Member	A primary platform user who discovers, registers for, attends, and engages with events.
+AWS Intern	An intended event audience and participant category.
+Instructor	A user who creates and manages events for AWS Members.
+AWS Admin	A platform administrator with governance, moderation, user-management, and analytics authority.
+External Audience	Participants outside the AWS Member or AWS Intern audiences. External participation is optional and must be explicitly enabled for an event.
+Canonical Event Model	The platform-owned representation of event data and lifecycle state.
+System of Record	The authoritative system responsible for maintaining core event and lifecycle data.
+Governed Taxonomy	Platform-defined event types, delivery formats, topics, audiences, and policies.
+Registration Policy	The rules that determine how participants register and how registrations are processed.
+SRS	Software Requirements Specification.
+
+1.4 References: 
+•	Project Decision Baseline.
+•	Product vision for the AWS Event Management Platform.
+•	Current Event Management Platform in-charged by AWS Members (luma, Meetup, etc.)
+•	Future architecture and system-design documentation.
+•	Future UX/UI specifications.
+•	Future data, security, and operational policies.
+________________________________________
+2. Overall Description
+2.1 Product Perspective: 
+The product is a centralized AWS-native platform that manages the complete lifecycle of AWS-related events. Its core conceptual domains are:
+1.	Event Management
+o	Event creation.
+o	Submission and approval.
+o	Publication.
+o	Taxonomy and lifecycle management.
+2.	Registration
+o	Registration.
+o	Capacity management.
+o	Approval and waitlisting.
+o	Cancellation.
+o	Attendance and check-in.
+3.	Engagement
+o	Announcements.
+o	Email communication.
+o	Notifications.
+o	Calendar invitations.
+o	Post-event surveys.
+4.	Analytics
+o	Event-level analytics.
+o	Platform-level analytics.
+o	Engagement and adoption insights.
+The platform shall maintain the canonical event model and the authoritative lifecycle of events. Third-party platforms such as Luma, Meetup, and Eventbrite may be treated as optional external integrations, migration sources, or reference platforms, but they shall not be required for the core platform lifecycle.
+2.2 Business Objectives
+ID	Objective
+BO-001	Increase adoption of the centralized platform as the primary platform for publishing and managing AWS events.
+BO-002	Improve AWS Member discovery, registration, attendance, and engagement with relevant events.
+BO-003	Reduce dependency on fragmented third-party event platforms by providing equivalent or superior core capabilities.
+
+2.3 User Classes and Characteristics: 
+User class	Description	Primary capabilities
+Instructor	An organizer responsible for creating and managing events for AWS Members.	Create events, submit events, manage own events, manage participants, communicate with participants, view event analytics.
+AWS Admin	A platform-level administrator responsible for governance and oversight.	Create and manage events, approve or reject events, moderate content, manage users and roles, manage taxonomy, configure policies, view platform analytics.
+AWS Member	The primary consumer of the platform.	Discover events, search and filter, register, cancel registration, save or follow events, receive communications, check in, submit feedback.
+AWS Intern	An intended audience and participant category.	Discover, register for, attend, and engage with eligible events.
+External Audience	An optional audience for selected events.	Participate in events when external participation has been explicitly enabled.
+
+2.4 Assumptions and Dependencies: 
+Assumptions
+•	Most events are free to join.
+•	Capacity, approval, and attendance are more important than payment processing.
+•	Event organizers use platform-defined taxonomy rather than creating their own event types or schemas.
+•	External participation is exceptional rather than the default.
+•	The platform will support a full event lifecycle rather than only event listing or registration.
+•	The platform should allow future expansion into personalization and recommendations without making those features current core requirements.
+Dependencies
+•	An approved identity and access-management approach.
+•	Availability of communication services for email and notifications.
+•	Availability of calendar-invitation mechanisms.
+•	Approved event taxonomy and governance policies.
+•	Approved data-retention and compliance policies.
+•	Future decisions regarding optional third-party integrations.
+•	Future AWS architecture and service-selection decisions.
+2.5 Design and Implementation Constraints: 
+The system shall follow these architectural and product constraints:
+•	The architecture shall be AWS-native.
+•	AWS managed services should be preferred where appropriate.
+•	The system should be designed for scalability.
+•	Security shall be considered a primary design concern.
+•	The system shall be observable through appropriate logging, monitoring, and operational signals.
+•	Event-driven processing should be used where appropriate.
+•	Operational overhead should be minimized.
+•	Specific implementation services shall not be hard-coded in this Lean SRS until they are approved in the architecture documentation. Candidate services may include Lambda, ECS, Aurora, DynamoDB, API Gateway, EventBridge, SQS, Cognito, SES, S3, and CloudFront, but no specific service is mandated by this document.
+________________________________________
+3. System Scope and High-Level Workflow
+3.1 End-to-End Event Lifecycle
+The platform shall support the following conceptual lifecycle:
+Draft
+  ↓
+Submitted
+  ↓
+Under Review
+  ↓
+Approved
+  ↓
+Published
+  ↓
+Registration Open
+  ↓
+Registration Closed
+  ↓
+Ongoing
+  ↓
+Completed
+  ↓
+Archived
+The following exceptional transition shall also be supported:
+Draft / Submitted / Published
+            ↓
+        Cancelled
+The final rules governing transitions, including whether an AWS Admin may bypass the approval process, require confirmation in a subsequent decision.
+3.2 Core Conceptual Model
+AWS Event Platform
+        │
+        ├── Event Management
+        │   ├── Creation and editing
+        │   ├── Submission and approval
+        │   ├── Publication
+        │   ├── Taxonomy
+        │   └── Lifecycle
+        │
+        ├── Registration
+        │   ├── Capacity
+        │   ├── Approval
+        │   ├── Waitlist
+        │   └── Check-in
+        │
+        ├── Engagement
+        │   ├── Announcements
+        │   ├── Email
+        │   ├── Notifications
+        │   ├── Calendar invitations
+        │   └── Surveys
+        │
+        └── System of Record
+            ├── Canonical event data
+            ├── Registration data
+            ├── Attendance data
+            └── Engagement data
+4. Specific Requirements
+4.1 Event Management Requirements
+FR-001 — Create Event
+The system shall allow an authorized Instructor or AWS Admin to create an event in Draft status.
+An event shall contain, at minimum, the information required to identify, describe, classify, schedule, deliver, and administer the event. The exact mandatory field set shall be defined in the detailed data specification.
+Acceptance criteria
+•	Given an authorized organizer, when the organizer creates an event, then the system stores the event as Draft.
+•	The system shall assign a unique platform-owned event identifier.
+•	The system shall prevent the organizer from selecting undefined taxonomy values.
+FR-002 — Edit Event
+The system shall allow an authorized organizer to edit an event according to its lifecycle state and permission level.
+Acceptance criteria
+•	The system shall enforce event ownership and role-based authorization.
+•	The system shall preserve the event’s canonical identifier when event details are updated.
+•	The system shall prevent unauthorized users from modifying event data.
+FR-003 — Submit Event for Review
+The system shall allow an Instructor to submit a Draft event for administrative review.
+Acceptance criteria
+•	A successfully submitted event shall transition from Draft to Submitted or Under Review according to the approved workflow.
+•	The system shall record the submitter and submission timestamp.
+•	The system shall prevent submission when required information is incomplete.
+FR-004 — Review Event
+The system shall allow an AWS Admin to review submitted events.
+Acceptance criteria
+•	An AWS Admin shall be able to approve or reject an event.
+•	A rejection shall include a reason or review comment.
+•	The system shall record the reviewer, decision, timestamp, and decision rationale.
+FR-005 — Publish Event
+The system shall allow an approved event to be published for discovery by its eligible audience.
+Acceptance criteria
+•	Only an event satisfying the approval rules may be published.
+•	A published event shall be visible according to its audience and publication settings.
+•	The system shall record the publication timestamp and publishing actor.
+Open decision: Whether an AWS Admin may bypass approval and publish directly remains unresolved.
+FR-006 — Cancel Event
+The system shall allow an authorized user to cancel an event from an eligible lifecycle state.
+Acceptance criteria
+•	The system shall record the cancellation actor, timestamp, and reason where required.
+•	The system shall prevent new registrations for a cancelled event.
+•	The system shall notify affected participants according to the approved communication policy.
+FR-007 — Manage Event Taxonomy
+The system shall apply a controlled taxonomy to event records.
+The conceptual taxonomy shall include:
+•	Event type, such as Workshop, Training, Webinar, Tech Talk, or Conference.
+•	Delivery format, such as In-person, Online, or Hybrid.
+•	Audience, such as AWS Members, AWS Interns, or External Audience.
+•	Governed topics.
+•	Registration policy.
+The exact taxonomy values are not yet finalized and shall be defined separately.
+FR-008 — Manage Event Lifecycle
+The system shall maintain the current lifecycle state of each event and shall enforce valid state transitions.
+Acceptance criteria
+•	The system shall reject invalid lifecycle transitions.
+•	Each state transition shall be auditable.
+•	The current state shall be available to authorized users and relevant workflows.
+________________________________________
+4.2 Event Discovery Requirements
+FR-009 — Browse Published Events
+The system shall allow eligible users to browse published events.
+Acceptance criteria
+•	Users shall only see events available to their audience or access level.
+•	Cancelled or archived events shall not appear as active discoverable events unless explicitly requested through an appropriate historical view. Authorized AWS Admins shall be able to access historical event records, including Completed, Cancelled, and Archived events, through the centralized event management interface.
+•	Event listings shall display sufficient summary information for discovery.
+FR-010 — Search Events
+The system shall allow users to search published events using supported event information.
+The exact searchable fields shall be defined in the detailed search specification.
+FR-011 — Filter Events
+The system shall allow users to filter events using governed attributes, including, where applicable:
+•	Event type.
+•	Delivery format.
+•	Topic.
+•	Audience.
+•	Date or date range.
+•	Registration availability.
+FR-012 — View Event Details
+The system shall allow an eligible user to view the details of a published event.
+The event-detail view shall provide the information required for a user to understand the event and determine whether to register.
+FR-013 — Save or Follow Event
+The system shall allow an authenticated user to save or follow an event, subject to the approved identity and permission model.
+Saved or followed events may be used as a future input for personalization or recommendations; a recommendation engine is not a current core requirement.
+________________________________________
+4.3 Registration Requirements
+FR-014 — Register for Event
+The system shall allow an eligible participant to register for a published event through the platform.
+Acceptance criteria
+•	Registration shall be created against the platform-owned canonical event.
+•	The system shall apply the event’s registration policy.
+•	The system shall prevent duplicate active registrations for the same participant and event.
+•	The system shall return the resulting registration status to the participant.
+FR-015 — Support Registration Statuses
+The system shall support the following conceptual registration statuses:
+text
+Pending
+Approved
+Waitlisted
+Rejected
+Cancelled
+Attended
+The exact transition rules shall be defined according to the selected registration policies.
+FR-016 — Manage Capacity
+The system shall support event capacity limits where configured.
+Acceptance criteria
+•	The system shall prevent approved registrations from exceeding the configured capacity.
+•	When capacity is reached, the system shall apply the event’s waitlist or registration-closure policy.
+•	Capacity changes shall be restricted to authorized users.
+FR-017 — Support Approval Policies
+The system shall support configurable registration policies, subject to final product decisions:
+•	Auto Approval.
+•	Manual Approval.
+•	Invite Only.
+•	Capacity with Waitlist.
+The exact policy set required in the initial release remains to be confirmed.
+FR-018 — Cancel Registration
+The system shall allow a participant to cancel an active registration before the applicable deadline or according to the event policy.
+Acceptance criteria
+•	The system shall update the registration status to Cancelled.
+•	A newly available capacity slot may be assigned according to the approved waitlist policy.
+•	The participant shall receive confirmation of the cancellation.
+FR-019 — Manage Participant Registrations
+The system shall allow authorized Instructors and AWS Admins to view and manage participant registrations for events they are authorized to administer.
+FR-020 — Check In Participant
+The system shall allow an authorized organizer or administrator to record event attendance.
+Acceptance criteria
+•	A valid participant may be marked as Attended.
+•	The system shall record the check-in time and actor where required.
+•	Attendance data shall be available for post-event analytics.
+FR-021 — Paid Events
+Paid-event, ticketing, and payment-processing capabilities are not current requirements. The system shall not assume that paid events are supported until a separate decision is approved.
+________________________________________
+4.4 Engagement Requirements
+FR-022 — Send Registration Confirmation
+The system shall provide a registration confirmation mechanism after a participant registers or receives approval.
+FR-023 — Issue Calendar Invitation
+The system shall support calendar invitations for eligible registered participants.
+The final calendar-integration mechanism remains to be defined.
+FR-024 — Send Reminders
+The system shall support event reminders for eligible participants according to configurable event and communication policies.
+FR-025 — Publish Announcements
+The system shall allow authorized organizers to publish announcements to the relevant event audience or registered participants.
+FR-026 — Send Email Communication
+The system shall allow authorized users or system workflows to send event-related email communications.
+FR-027 — Deliver Notifications
+The system shall support notifications for important event and registration changes.
+The notification channels beyond email and in-app notification are not yet defined.
+FR-028 — Collect Post-Event Feedback
+The system shall allow eligible participants to submit post-event surveys or feedback.
+Acceptance criteria
+•	The system shall associate feedback with the relevant event and participant context.
+•	The system shall restrict feedback submission according to the approved survey policy.
+•	Feedback data shall be available for event-level analytics.
+________________________________________
+4.5 Analytics Requirements
+FR-029 — Provide Event-Level Analytics
+The system shall provide event-level analytics capability to authorized users.
+Potential information may include:
+•	Event views.
+•	Registrations.
+•	Registration approvals and rejections.
+•	Attendance.
+•	No-shows.
+•	Feedback.
+•	Engagement.
+The detailed metric set, calculation rules, dashboards, and reporting format are not defined in this Lean SRS.
+FR-030 — Provide Platform-Level Analytics
+The system shall provide platform-level analytics capability to authorized AWS Admins.
+Potential information may include:
+•	Platform adoption.
+•	Member engagement.
+•	Registration volume.
+•	Attendance.
+•	Popular topics.
+•	Platform usage.
+•	Reduction in third-party platform dependency.
+The detailed metric set remains subject to a future analytics decision.
+FR-031 — Preserve Analytics Extensibility
+The data model and event-processing approach should permit future analytics expansion without requiring a redesign of the canonical event model.
+________________________________________
+4.6 Integration and Data Ownership Requirements
+FR-032 — Maintain Canonical Event Data
+The platform shall maintain the canonical representation of event data, registration data, attendance data, and relevant engagement data.
+FR-033 — Use Platform-Owned Event Identifiers
+The platform shall assign and maintain unique identifiers for events within the platform.
+External platform identifiers may be stored as integration metadata but shall not replace the platform’s canonical identifiers.
+FR-034 — Support Optional External Integrations
+The platform may support optional integrations with Luma, Meetup, Eventbrite, or other external platforms for:
+•	Benchmarking.
+•	Migration.
+•	Legacy transition.
+•	Optional distribution or synchronization.
+Such integrations shall not be required for the core event lifecycle.
+FR-035 — Prevent External Systems from Becoming the Source of Truth
+External platforms shall not control the canonical lifecycle of events, registrations, or attendance in the target state.
+FR-036 — Support Future Migration
+The system architecture and data model should allow future migration of relevant event information from third-party platforms, subject to a separately approved migration scope.
+________________________________________
+4.7 Administration and Governance Requirements
+FR-037 — Manage Users and Roles
+The system shall allow authorized AWS Admins to manage users and roles according to the approved access-control model.
+The detailed organizer permission model remains to be defined.
+FR-038 — Manage Taxonomy
+The system shall allow authorized AWS Admins to manage governed event types, topics, formats, audiences, and related classification values.
+FR-039 — Configure Event Policies
+The system shall allow authorized AWS Admins to configure applicable event and registration policies.
+FR-040 — Moderate Event Content
+The system shall allow AWS Admins to moderate event content and enforce platform governance rules.
+FR-041 — Audit Governance Actions
+The system shall record material governance actions, including:
+•	Event approval and rejection.
+•	Event publication and cancellation.
+•	Taxonomy changes.
+•	Policy changes.
+•	User and role changes.
+•	Registration-management actions.
+________________________________________
+FR-042 — Centralized Admin Event Management
+The system shall provide authorized AWS Admins with a centralized event management interface that serves as the administrative view of platform-owned events across the complete event lifecycle.
+Acceptance criteria
+The interface shall allow AWS Admins to view events across applicable lifecycle states, including Draft, Submitted, Under Review, Approved, Published, Registration Open, Registration Closed, Ongoing, Completed, Cancelled, and Archived.
+The interface shall display sufficient event information for administrative management, including event identifier, event name, organizer, lifecycle status, event date or date range, event type, audience, and delivery format where applicable.
+The system shall enforce role-based authorization so that only authorized AWS Admins can access administrative event-management functions.
+The interface shall provide access to event-level management actions permitted by the event lifecycle state and the Admin permission model.
+FR-043 — Historical Event Management
+The system shall maintain historical event records as part of the platform-owned canonical event data and shall allow authorized AWS Admins to search, filter, and view historical events.
+Acceptance criteria
+Historical event records shall include at minimum Completed, Cancelled, and Archived events.
+AWS Admins shall be able to search historical events using supported event information, including event name or event identifier.
+AWS Admins shall be able to filter historical events by applicable attributes such as lifecycle status, event type, organizer, audience, delivery format, and date or date range.
+A historical event shall remain associated with its platform-owned event identifier and canonical event data after completion, cancellation, or archival.
+Historical events shall remain available for authorized administrative review even when they are no longer active in participant-facing event discovery.
+FR-044 — Event History and Audit Timeline
+The system shall maintain an auditable history for each event and shall allow authorized AWS Admins to view the event lifecycle history and material administrative actions associated with that event.
+Acceptance criteria
+The event history shall record lifecycle transitions such as creation, submission, review, approval, rejection, publication, registration closure, completion, cancellation, and archival where applicable.
+For each auditable action, the system shall record the action type, actor, timestamp, and relevant reason or decision rationale where applicable.
+AWS Admins shall be able to view the event history in chronological order from the event detail or centralized event management interface.
+The system shall prevent unauthorized users from modifying or deleting event history and audit records.
+Event history shall remain available after an event is Completed, Cancelled, or Archived, subject to approved data-retention policies.
+5. Non-Functional Requirements
+The following requirements are intentionally stated at a lean, quality-attribute level. Detailed targets shall be defined through architecture, security, operations, and performance specifications.
+NFR-001 — Scalability
+The system should support growth in events, participants, registrations, engagement activity, and analytics volume without requiring a fundamental redesign of the product model.
+NFR-002 — Availability and Reliability
+The system should provide reliable access to core event discovery, registration, lifecycle, and attendance capabilities. Specific availability targets, RTO, and RPO are not yet defined.
+NFR-003 — Security
+The system shall enforce authentication and authorization appropriate to user roles, event audiences, and administrative functions.
+Security design shall address, at minimum:
+•	Access control.
+•	Protection of participant data.
+•	Secure handling of event and registration information.
+•	Auditability of sensitive actions.
+•	Secure integration with external systems.
+NFR-004 — Data Ownership and Integrity
+The platform shall preserve the integrity and consistency of canonical event, registration, attendance, and engagement data.
+NFR-005 — Observability
+The system should provide sufficient logging, monitoring, tracing, and alerting to support operational diagnosis and governance.
+NFR-006 — Maintainability
+The system should be modular and maintainable, with clear separation between event management, registration, engagement, analytics, and integrations.
+NFR-007 — Extensibility
+The system should allow future support for:
+•	Additional event types and governed topics.
+•	Additional registration policies.
+•	Personalization and recommendations.
+•	Additional communication channels.
+•	Additional external integrations.
+•	Expanded analytics capabilities.
+NFR-008 — Usability
+The platform should provide a clear and consistent experience for organizers, administrators, and participants across the event lifecycle.
+NFR-009 — Accessibility
+The user interface should follow applicable accessibility requirements. The exact standard and conformance level remain to be defined.
+NFR-010 — Interoperability
+External integrations should use documented interfaces and should avoid coupling the core event lifecycle to any particular third-party platform.
+NFR-011 — Operational Efficiency
+The architecture should prefer managed AWS capabilities and minimize infrastructure-management overhead, while leaving specific service choices to the architecture phase.
+NFR-012 — Privacy and Retention
+Participant and event data shall be handled according to approved privacy, compliance, and retention policies. Those policies are not yet finalized.
+________________________________________
+6. Interface Requirements
+6.1 User Interface
+The platform shall provide interfaces appropriate for:
+•	Instructors managing their own events.
+•	AWS Admins managing governance and platform operations.
+•	AWS Members discovering and participating in events.
+•	AWS Interns participating in eligible events.
+•	External participants, if external participation is enabled.
+Detailed screen designs, navigation, wireframes, and interaction specifications shall be maintained in UX/UI documentation rather than in this Lean SRS.
+6.2 Software and API Interfaces
+The system may interface with:
+•	Identity and access-management systems.
+•	Email and notification services.
+•	Calendar services.
+•	Analytics and reporting components.
+•	Optional third-party event platforms.
+•	Migration or data-import tools.
+The identity provider, external-audience authentication mechanism, API contracts, and integration protocols remain open decisions.
+6.3 Communication Interfaces
+The system shall support event-related communication capabilities for:
+•	Registration confirmation.
+•	Approval or rejection notification.
+•	Event reminders.
+•	Event announcements.
+•	Calendar invitations.
+•	Post-event survey invitations.
+The final communication channels and delivery-service implementation shall be defined separately.
+6.4 Hardware Interfaces
+No specific hardware interface is currently required. If physical check-in devices, scanners, kiosks, or other hardware are introduced, they shall be specified in a separate interface specification.
+________________________________________
+7. Data and Business Rules
+7.1 Core Data Entities
+The initial conceptual data model shall include:
+•	User.
+•	Role.
+•	Event.
+•	Event Type.
+•	Topic.
+•	Delivery Format.
+•	Audience.
+•	Registration Policy.
+•	Registration.
+•	Attendance or Check-in Record.
+•	Announcement.
+•	Notification.
+•	Calendar Invitation.
+•	Survey.
+•	Feedback.
+•	Analytics Record or Event.
+•	External Integration Reference.
+Event History Record.
+•	Audit Record.
+The detailed attributes, relationships, constraints, and physical data model shall be defined in the system-design documentation.
+7.2 Business Rules
+ID	Business rule
+BR-001	The platform shall be the system of record for canonical event data and event lifecycle management.
+BR-002	External participation shall be explicitly enabled for an event; it shall not be the default audience configuration.
+BR-003	Organizers shall select values from platform-governed taxonomy and shall not freely define event types or schemas.
+BR-004	Registration shall take place on the platform in the target state and shall not depend on redirecting participants to Luma or another third-party platform.
+BR-005	An event may impose a participant capacity limit.
+BR-006	Event publication shall be subject to a governance and review workflow.
+BR-007	Third-party event platforms shall not be core dependencies for the platform’s primary event lifecycle.
+BR-008	Most events are assumed to be free to join unless a future business decision introduces paid-event support.
+BR-009	The system shall maintain a distinction between system roles and event-audience categories.
+BR-010	Attendance data shall be recorded against the platform-owned event and registration records.
+BR-011	The centralized event management interface shall provide authorized AWS Admins with access to current and historical platform-owned events.
+BR-012	Completed, Cancelled, and Archived events shall remain part of the platform's canonical event history and shall not be treated as deleted solely because they are no longer active.
+BR-013	Event lifecycle transitions and material administrative actions shall be auditable and associated with the relevant platform-owned event identifier.
+________________________________________
+8. Verification and Traceability
+8.1 Verification Approach
+Requirements shall be verified using a combination of:
+•	Unit testing.
+•	Integration testing.
+•	API and workflow testing.
+•	Security and authorization testing.
+•	User acceptance testing.
+•	Performance and scalability testing.
+•	Operational and observability testing.
+•	Data-integrity and migration testing where applicable.
+Detailed test strategies and test cases shall be maintained outside this Lean SRS.
+8.2 Requirement Traceability
+A requirement shall be considered traceable when it can be mapped to:
+text
+Business Objective
+        ↓
+User or Business Need
+        ↓
+System Requirement
+        ↓
+User Story / Work Item
+        ↓
+Acceptance Criteria
+        ↓
+Test Case
+8.3 Initial Traceability Matrix
+Business objective	Related requirements
+BO-001 — Adoption	FR-001–FR-008, FR-029–FR-030, FR-032–FR-036, FR-042–FR-044, NFR-001, NFR-008
+BO-002 — Member Engagement	FR-009–FR-013, FR-014–FR-020, FR-022–FR-028, FR-029, FR-042–FR-044
+BO-003 — Platform Replacement	FR-001–FR-008, FR-014–FR-020, FR-022–FR-028, FR-032–FR-036, FR-042–FR-044, NFR-010
+________________________________________
+9. Open Decisions and Deferred Requirements
+The following items shall remain explicitly unresolved rather than being assumed in this SRS:
+Area	Status
+Exact event taxonomy	To be defined.
+AWS Admin approval bypass	Requires decision.
+Mandatory registration policies for the initial release	Requires decision.
+Paid-event support	Not decided; excluded from current core scope.
+Detailed analytics metrics and reports	To be defined.
+Recommendation engine	Deferred to a future phase.
+Exact AWS service architecture	To be defined in architecture documentation.
+Third-party migration depth	To be defined.
+Identity provider	To be selected.
+External-audience authentication	To be defined.
+Additional notification channels	To be defined.
+Organizer permission model	Requires definition.
+Data-retention policy	To be defined.
+These open decisions should be tracked as product or architecture decisions and should not be silently resolved inside implementation work.
+
